@@ -42,11 +42,9 @@ inv_s_box = (
 )
 
 def bytes2matrix(lst):
-    """ Converts a 16-byte array into a 4x4 matrix.  """
     return [list(lst[i:i+4]) for i in range(0, len(lst), 4)]
 
 def matrix2bytes(matrix):
-    """ Converts a 4x4 matrix into a 16-byte array.  """
     data = ""
     for i in range(4):
         for j in range(4):
@@ -74,7 +72,6 @@ def inv_shift_rows(s):
     s[2][2], s[3][2], s[0][2], s[1][2] = s[0][2], s[1][2], s[2][2], s[3][2]
     s[3][3], s[0][3], s[1][3], s[2][3] = s[0][3], s[1][3], s[2][3], s[3][3]       
 
-# learned from http://cs.ucsb.edu/~koc/cs178/projects/JT/aes.c
 xtime = lambda a: (((a << 1) ^ 0x1B) & 0xFF) if (a & 0x80) else (a << 1)
 
 
@@ -106,11 +103,7 @@ def inv_mix_columns(s):
     mix_columns(s)
 
 def expand_key(master_key):
-    """
-    Expands and returns a list of key matrices for the given master_key.
-    """
 
-    # Round constants https://en.wikipedia.org/wiki/AES_key_schedule#Round_constants
     r_con = (
         0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40,
         0x80, 0x1B, 0x36, 0x6C, 0xD8, 0xAB, 0x4D, 0x9A,
@@ -118,46 +111,34 @@ def expand_key(master_key):
         0xD4, 0xB3, 0x7D, 0xFA, 0xEF, 0xC5, 0x91, 0x39,
     )
 
-    # Initialize round keys with raw key material.
     key_columns = bytes2matrix(master_key)
     iteration_size = len(master_key) // 4
 
-    # Each iteration has exactly as many columns as the key material.
     i = 1
     while len(key_columns) < (N_ROUNDS + 1) * 4:
         # Copy previous word.
         word = list(key_columns[-1])
 
-        # Perform schedule_core once every "row".
         if len(key_columns) % iteration_size == 0:
-            # Circular shift.
             word.append(word.pop(0))
-            # Map to S-BOX.
             word = [s_box[b] for b in word]
-            # XOR with first byte of R-CON, since the others bytes of R-CON are 0.
             word[0] ^= r_con[i]
             i += 1
         elif len(master_key) == 32 and len(key_columns) % iteration_size == 4:
-            # Run word through S-box in the fourth iteration when using a
-            # 256-bit key.
             word = [s_box[b] for b in word]
 
-        # XOR with equivalent word from previous iteration.
         word = bytes(i^j for i, j in zip(word, key_columns[-iteration_size]))
         key_columns.append(word)
 
-    # Group key words in 4x4 byte matrices.
     return [key_columns[4*i : 4*(i+1)] for i in range(len(key_columns) // 4)]
 
 
 def decrypt(key, ciphertext):
     state = [[0] * 4] * 4
-    round_keys = expand_key(key) # Remember to start from the last round key and work backwards through them when decrypting
+    round_keys = expand_key(key) 
 
-    # Convert cipherlst to state matrix
     state = bytes2matrix(ciphertext)
 
-    # Initial add round key step
     add_round_key(state, round_keys[10])
     
     for i in range(N_ROUNDS - 1, 0, -1):
@@ -166,14 +147,13 @@ def decrypt(key, ciphertext):
         add_round_key(state, round_keys[i])
         inv_mix_columns(state)
 
-    # Run final round (skips the InvMixColumns step)
     inv_shift_rows(state)
     sub_bytes(state, inv_s_box)
     add_round_key(state, round_keys[0])
     
-    # Convert state matrix to plainlst
     plaintext = matrix2bytes(state)
     return plaintext
 
 
 print(decrypt(key, ciphertext))
+
