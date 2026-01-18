@@ -47,9 +47,9 @@ state = [
 def sub_bytes(s, sbox=s_box):
     return [[sbox[i] for i in j] for j in state]
 def matrix2bytes(matrix):
-    """ Converts a 4x4 matrix into a 16-byte array.  """
     return bytes(sum(matrix, []))
 print(matrix2bytes(sub_bytes(state, sbox=inv_s_box)))
+
 
 
 
